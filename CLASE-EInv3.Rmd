@@ -1,0 +1,110 @@
+---
+title: "claseEInv3"
+author: "Ivan Uriel Olvera Perez"
+date: "29/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(readr)
+
+tweetsA <- read_csv("TW_AAPL_CUR.csv")
+tweetsA <- read.csv(file.choose(), header = T)
+
+str(tweetsA)
+
+```
+
+```{r}
+# Construir nuestro corpus
+library(tm)
+corpus <- iconv(tweetsA$text, to = "utf-8")
+corpus <- Corpus(VectorSource(corpus))
+inspect(corpus[1:5])
+
+# Limpiar texto
+corpus <- tm_map(corpus, tolower)
+inspect(corpus[1:5])
+
+corpus <- tm_map(corpus, removePunctuation)
+inspect(corpus[1:5])
+
+corpus <- tm_map(corpus, removeNumbers)
+inspect(corpus[1:5])
+
+cleanset <- tm_map(corpus, removeWords, stopwords('english'))
+inspect(cleanset[1:5])
+
+removeURL <- function(x) gsub('http[[:alnum:]]*', '', x)
+cleanset <- tm_map(cleanset, content_transformer(removeURL))
+inspect(cleanset[1:5])
+
+cleanset <- tm_map(cleanset, removeWords, c('aapl', 'apple')) 
+#Aquí eliminamos la palabra apple, ya que no nos interesa su frecuencia porque es la palabra filtrada para la búsqueda de los tweets
+cleanset <- tm_map(cleanset, removeWords, c('stock', 'stocks'))
+#Hacemos lo mismo con la palabra stock puesto que es la misma situación
+
+
+
+cleanset <- tm_map(cleanset, stripWhitespace)
+inspect(cleanset[1:5])
+
+#matrix de términos del cdoc
+tdm <- TermDocumentMatrix(cleanset)
+tdm <- as.matrix(tdm)
+tdm[1:10, 1:20]
+
+# Bar plot
+w <- rowSums(tdm)
+w <- subset(w, w>=25)
+barplot(w,
+        las = 2,
+        col = rainbow(50))
+View(w)
+# Ahora crearemos una nube de palabras para que sea mas facil el analisis 
+library(wordcloud)
+w <- sort(rowSums(tdm), decreasing = TRUE)
+set.seed(222)
+wordcloud(words = names(w),
+          freq = w,
+          max.words = 150,
+          random.order = F,
+          min.freq = 5,
+          colors = brewer.pal(8, 'Dark2'),
+          scale = c(5, 0.3),
+          rot.per = 0.7)
+View(w)
+```
+
+```{r}
+
+# Sentiment analysis
+library(syuzhet)
+library(lubridate)
+library(ggplot2)
+library(scales)
+library(reshape2)
+library(dplyr)
+
+# Read file
+apple <- read.csv(file.choose(), header = T)
+tweetsA <- iconv(apple$text, to = 'utf-8')
+
+# Obtain sentiment scores
+s <- get_nrc_sentiment(tweetsA)
+head(s)
+b <- get_nrc_sentiment('ugly')
+head(b)
+# Bar plot
+barplot(colSums(s),
+        las = 2,
+        col = rainbow(10),
+        ylab = 'Count',
+        main = 'Sentiment Scores for Apple Tweets')
+```
